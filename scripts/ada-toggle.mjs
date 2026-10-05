@@ -1,0 +1,70 @@
+import { createClient } from '@supabase/supabase-js';
+import { chromium } from '@playwright/test';
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const EMPLOYEE_ID = process.env.GHL_EMPLOYEE_ID;
+const LOCATION_ID = process.env.GHL_LOCATION_ID;
+const MODE = process.env.ADA_MODE;
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+async function getCookies() {
+  const { data } = await supabase.from('ada_ghl_session').select('cookies').eq('id', 'default').single();
+  return data?.cookies || [];
+}
+
+async function saveCookies(cookies) {
+  await supabase.from('ada_ghl_session').upsert({ id: 'default', cookies, updated_at: new Date().toISOString() });
+}
+
+async function main() {
+  const savedCookies = await getCookies();
+  if (!savedCookies.length) { console.error('[Ada] No hay cookies.'); process.exit(1); }
+
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext();
+  await context.addCookies(savedCookies);
+  const page = await context.newPage();
+
+  await page.goto(`https://app.gohighlevel.com/v2/location/${LOCATION_ID}/ai-agents/conversation-ai?activeTab=employees`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+  const triggerSelector = `#agents-table-actions-${EMPLOYEE_ID}-trigger button`;
+  console.log('[Ada] Esperando tabla de agentes...');
+  await page.waitForSelector(triggerSelector, { timeout: 30000 });
+  console.log('[Ada] Ada encontrada. Iniciando toggle...');
+
+  await page.evaluate((sel) => { document.querySelector(sel).click(); }, triggerSelector);
+  await page.waitForTimeout(1500);
+
+  await page.waitForSelector('.hr-dropdown-option-title', { timeout: 5000 });
+  await page.evaluate(() => {
+    document.querySelectorAll('.hr-dropdown-option-title').forEach(el => { if (el.textContent.trim() === 'Editar') el.click(); });
+  });
+  await page.waitForTimeout(3000);
+
+  await page.waitForSelector('.hr-base-selection-input__content', { timeout: 10000 });
+  await page.evaluate(() => {
+    document.querySelectorAll('.hr-base-selection-input__content').forEach(el => { if (['Off','Suggestive','Auto-Pilot'].includes(el.textContent.trim())) el.parentElement.click(); });
+  });
+  await page.waitForTimeout(1500);
+
+  await page.waitForSelector('.hr-select-option-label', { timeout: 5000 });
+  await page.evaluate((MODE) => {
+    document.querySelectorAll('.hr-select-option-label').forEach(el => { if (el.textContent.trim() === MODE) { el.dispatchEvent(new MouseEvent('mousedown',{bubbles:true})); el.click(); } });
+  }, MODE);
+  await page.waitForTimeout(1500);
+
+  await page.evaluate(() => {
+    document.querySelectorAll('button').forEach(el => { if (el.textContent.trim() === 'Guardar') el.click(); });
+  });
+  await page.waitForTimeout(3000);
+
+  const cookies = await context.cookies();
+  await saveCookies(cookies);
+  await browser.close();
+
+  console.log(`[Ada] ✅ Modo cambiado a: ${MODE}`);
+}
+
+main().catch(e => { console.error(e); process.exit(1); });
