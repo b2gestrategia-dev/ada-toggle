@@ -1,0 +1,42 @@
+name: Ada Toggle
+
+on:
+  schedule:
+    - cron: '0 13 * * *'   # 10:00 Santiago (OFF)
+    - cron: '0 23 * * *'   # 20:00 Santiago (ON)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Modo Ada'
+        required: true
+        default: 'Suggestive'
+        type: choice
+        options:
+          - Suggestive
+          - Off
+
+jobs:
+  toggle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Toggle Ada
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          GHL_LOCATION_ID: ${{ secrets.GHL_LOCATION_ID }}
+          GHL_EMPLOYEE_ID: ${{ secrets.GHL_EMPLOYEE_ID }}
+          GHL_KB_IDS: ${{ secrets.GHL_KB_IDS }}
+          ADA_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || (github.event.schedule == '0 23 * * *' && 'Suggestive' || 'Off') }}
+        run: node scripts/ada-toggle.mjs  
