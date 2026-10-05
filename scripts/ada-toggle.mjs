@@ -1,4 +1,24 @@
-import { createClient } from '@supabase/supabase-js';
+async function getCookies() {
+  console.log('[Ada] SUPABASE_URL:', SUPABASE_URL ? SUPABASE_URL.substring(0,30) : 'UNDEFINED');
+  console.log('[Ada] KEY:', SUPABASE_SERVICE_KEY ? 'OK' : 'UNDEFINED');
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/ada_ghl_session?id=eq.default&select=cookies`, {
+      headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` }
+    });
+    const text = await res.text();
+    console.log('[Ada] Supabase status:', res.status, 'body:', text.substring(0, 200));
+    const data = JSON.parse(text);
+    return data[0]?.cookies || [];
+  } catch(e) {
+    console.error('[Ada] fetch error:', e.message);
+    return [];
+  }
+}
+Ctrl+S → cierra → en CMD:
+
+cd C:\ada-login && git add scripts\ada-toggle.mjs && git commit -m "fix: debug supabase fetch" && git push
+el remplazo es al texto completo ! integra eso
+
 import { chromium } from '@playwright/test';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -7,15 +27,29 @@ const EMPLOYEE_ID = process.env.GHL_EMPLOYEE_ID;
 const LOCATION_ID = process.env.GHL_LOCATION_ID;
 const MODE = process.env.ADA_MODE;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-
 async function getCookies() {
-  const { data } = await supabase.from('ada_ghl_session').select('cookies').eq('id', 'default').single();
-  return data?.cookies || [];
+  console.log('[Ada] SUPABASE_URL:', SUPABASE_URL ? SUPABASE_URL.substring(0,30) : 'UNDEFINED');
+  console.log('[Ada] KEY:', SUPABASE_SERVICE_KEY ? 'OK' : 'UNDEFINED');
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/ada_ghl_session?id=eq.default&select=cookies`, {
+      headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` }
+    });
+    const text = await res.text();
+    console.log('[Ada] Supabase status:', res.status, 'body:', text.substring(0, 200));
+    const data = JSON.parse(text);
+    return data[0]?.cookies || [];
+  } catch(e) {
+    console.error('[Ada] fetch error:', e.message);
+    return [];
+  }
 }
 
 async function saveCookies(cookies) {
-  await supabase.from('ada_ghl_session').upsert({ id: 'default', cookies, updated_at: new Date().toISOString() });
+  await fetch(`${SUPABASE_URL}/rest/v1/ada_ghl_session?id=eq.default`, {
+    method: 'PATCH',
+    headers: { 'apikey': SUPABASE_SERVICE_KEY, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cookies, updated_at: new Date().toISOString() })
+  });
 }
 
 async function main() {
