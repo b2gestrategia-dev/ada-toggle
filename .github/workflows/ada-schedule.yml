@@ -8,7 +8,7 @@ on:
     inputs:
       mode:
         description: Modo Ada
-        required: true
+        required: false
         default: Suggestive
         type: choice
         options:
@@ -34,5 +34,6 @@ jobs:
           GHL_LOCATION_ID: ${{ secrets.GHL_LOCATION_ID }}
           GHL_EMPLOYEE_ID: ${{ secrets.GHL_EMPLOYEE_ID }}
           GHL_KB_IDS: ${{ secrets.GHL_KB_IDS }}
+          CRM_WEBHOOK_URL: ${{ secrets.CRM_WEBHOOK_URL }}
           ADA_MODE: ${{ inputs.mode }}
         run: node scripts/ada-toggle.mjs
