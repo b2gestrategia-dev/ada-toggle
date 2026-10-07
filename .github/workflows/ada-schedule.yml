@@ -7,11 +7,11 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Modo Ada
+        description: Modo Ada (dejar vacio = automatico por hora)
         required: false
-        default: Suggestive
         type: choice
         options:
+          - ""
           - Suggestive
           - Off
 
